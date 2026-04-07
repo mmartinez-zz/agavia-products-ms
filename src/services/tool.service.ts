@@ -12,14 +12,29 @@ export async function executeTool(
   context: ToolContext,
   args: Record<string, any>
 ): Promise<ToolResult> {
+  console.log('[TOOL-MS] Resolving tool:', tool);
+
   const handler = toolRegistry[tool];
 
   if (!handler) {
+    console.error('[TOOL-MS] Tool not found:', tool);
     return { success: false, error: 'VALIDATION_ERROR' };
   }
 
+  console.log('[TOOL-MS] Executing tool:', {
+    tool: tool,
+    businessId: context.businessId
+  });
+
   try {
-    return await handler(context, args);
+    const result = await handler(context, args);
+
+    console.log('[TOOL-MS] Tool execution completed:', {
+      tool: tool,
+      success: result?.success
+    });
+
+    return result;
   } catch (error: any) {
     console.error(`[${tool}] Error: ${error.message}`);
     if (error.message === 'TIMEOUT') {

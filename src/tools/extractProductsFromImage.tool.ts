@@ -66,19 +66,30 @@ async function callOpenAI(imageUrl: string): Promise<ExtractedProduct[]> {
 
   const data: any = await response.json();
 
+  console.log('[TOOL-MS] OpenAI raw response received');
+
   const outputText =
     data.output_text || data.output?.[0]?.content?.[0]?.text || "";
+
+  console.log('[TOOL-MS] OpenAI output text:', outputText);
   if (!outputText) {
+    console.warn('[TOOL-MS] No products extracted from image');
     return [];
   }
 
   try {
     const jsonMatch = outputText.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) return [];
+    if (!jsonMatch) {
+      console.error('[TOOL-MS] Failed to parse OpenAI response');
+      return [];
+    }
 
     const parsed = JSON.parse(jsonMatch[0]);
-    return Array.isArray(parsed) ? parsed : [];
+    const products = Array.isArray(parsed) ? parsed : [];
+    console.log('[TOOL-MS] Parsed products count:', products.length);
+    return products;
   } catch {
+    console.error('[TOOL-MS] Failed to parse OpenAI response');
     return [];
   }
 }
@@ -97,6 +108,11 @@ export const extractProductsFromImageTool: ToolHandler = async (
   context,
   args,
 ): Promise<ToolResult> => {
+  console.log('[TOOL-MS] extract_products_from_image START', {
+    imageUrl: args.imageUrl,
+    businessId: context.businessId
+  });
+
   if (!args.imageUrl || typeof args.imageUrl !== "string") {
     return { success: false, error: "VALIDATION_ERROR" };
   }
@@ -113,6 +129,9 @@ export const extractProductsFromImageTool: ToolHandler = async (
 
     const validProducts = extractedProducts.filter(isValidProduct);
 
+    console.log('[TOOL-MS] Valid products count:', validProducts.length);
+
+    console.log('[TOOL-MS] Saving products...');
     let created = 0;
     for (const product of validProducts) {
       try {
@@ -130,11 +149,18 @@ export const extractProductsFromImageTool: ToolHandler = async (
       }
     }
 
+    console.log('[TOOL-MS] Products saved:', created);
+
     return {
       success: true,
       data: { created },
     };
   } catch (error: any) {
+    console.error('[TOOL-MS] ERROR in extract_products_from_image', {
+      message: error.message,
+      stack: error.stack
+    });
+
     if (error.message === "TIMEOUT") {
       throw error;
     }
