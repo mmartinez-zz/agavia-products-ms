@@ -1,10 +1,16 @@
 import { ToolContext, ToolHandler, ToolResult } from '../types';
 import { createProductTool } from '../tools/createProduct.tool';
 import { extractProductsFromImageTool } from '../tools/extractProductsFromImage.tool';
+import { listProductsTool } from '../tools/listProducts.tool';
+import { getProductByDisplayIdTool } from '../tools/getProductByDisplayId.tool';
+import { updateProductTool } from '../tools/updateProduct.tool';
 
 const toolRegistry: Record<string, ToolHandler> = {
   create_product_from_chat: createProductTool,
   extract_products_from_image: extractProductsFromImageTool,
+  list_products: listProductsTool,
+  get_product_by_displayId: getProductByDisplayIdTool,
+  update_product: updateProductTool,
 };
 
 export async function executeTool(

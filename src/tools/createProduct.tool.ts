@@ -32,6 +32,18 @@ export const createProductTool: ToolHandler = async (
 
   return {
     success: true,
-    data: { id: product.id, title: product.title },
+    data: {
+      id: product.id,
+      displayId: product.displayId,
+      title: product.title,
+      price: product.price,
+      imageUrl: product.imageUrl,
+      description: product.description,
+      display: [
+        { label: "ID", value: product.displayId },
+        { label: "Título", value: product.title },
+        { label: "Precio", value: `$${product.price}` },
+      ]
+    },
   };
 };
