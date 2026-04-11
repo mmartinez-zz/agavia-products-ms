@@ -33,6 +33,8 @@ export const listProductsTool: ToolHandler = async (
   context,
   args,
 ): Promise<ToolResult> => {
+  console.info('[listProducts] Request', { businessId: context.businessId, args });
+
   const limit = Math.min(args.limit || 10, 50);
   const offset = Math.max(args.offset || 0, 0);
   const filters = args.filters || {};
@@ -77,7 +79,7 @@ export const listProductsTool: ToolHandler = async (
 
   const hasMore = offset + result.length < total;
 
-  return {
+  const response = {
     success: true,
     data: {
       products: result,
@@ -92,5 +94,8 @@ export const listProductsTool: ToolHandler = async (
         : {}),
     },
   };
+
+  console.info('[listProducts] Response', { success: true, count: result.length, total });
+  return response;
 };
 

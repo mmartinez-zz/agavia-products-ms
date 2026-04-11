@@ -5,6 +5,11 @@ export const getProductByDisplayIdTool: ToolHandler = async (
   context,
   args,
 ): Promise<ToolResult> => {
+  console.info("[getProductByDisplayId] Request", {
+    businessId: context.businessId,
+    args,
+  });
+
   const displayId = args.displayId;
 
   if (
@@ -36,7 +41,7 @@ export const getProductByDisplayIdTool: ToolHandler = async (
     };
   }
 
-  return {
+  const result = {
     success: true,
     data: {
       product: {
@@ -49,8 +54,17 @@ export const getProductByDisplayIdTool: ToolHandler = async (
         { label: "ID", value: product.displayId },
         { label: "Título", value: product.title },
         { label: "Precio", value: `$${product.price.toLocaleString()}` },
+        ...(product.description
+          ? [{ label: "Descripción", value: product.description }]
+          : []),
       ],
       imageUrl: product.imageUrl || null,
     },
   };
+
+  console.info("[getProductByDisplayId] Response", {
+    success: true,
+    displayId: product.displayId,
+  });
+  return result;
 };

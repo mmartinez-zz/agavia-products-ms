@@ -18,7 +18,7 @@ export async function executeTool(
   context: ToolContext,
   args: Record<string, any>
 ): Promise<ToolResult> {
-  console.log('[TOOL-MS] Resolving tool:', tool);
+  console.debug('[toolService] Resolving tool:', tool);
 
   const handler = toolRegistry[tool];
 
@@ -27,7 +27,7 @@ export async function executeTool(
     return { success: false, error: 'VALIDATION_ERROR' };
   }
 
-  console.log('[TOOL-MS] Executing tool:', {
+  console.debug('[toolService] Executing tool:', {
     tool: tool,
     businessId: context.businessId
   });
@@ -35,7 +35,7 @@ export async function executeTool(
   try {
     const result = await handler(context, args);
 
-    console.log('[TOOL-MS] Tool execution completed:', {
+    console.debug('[toolService] Tool execution completed:', {
       tool: tool,
       success: result?.success
     });

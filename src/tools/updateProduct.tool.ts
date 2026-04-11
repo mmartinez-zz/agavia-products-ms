@@ -5,6 +5,8 @@ export const updateProductTool: ToolHandler = async (
   context,
   args,
 ): Promise<ToolResult> => {
+  console.info('[updateProduct] Request', { businessId: context.businessId, args });
+
   const productId = args.productId;
 
   // 🔒 VALIDACIÓN
@@ -71,7 +73,7 @@ export const updateProductTool: ToolHandler = async (
   });
 
   // 🎯 RESPONSE UNIFICADA (MISMO CONTRATO QUE CREATE)
-  return {
+  const result = {
     success: true,
     data: {
       id: updated.id,
@@ -89,4 +91,7 @@ export const updateProductTool: ToolHandler = async (
       ],
     },
   };
+
+  console.info('[updateProduct] Response', { success: true, displayId: updated.displayId });
+  return result;
 };

@@ -7,11 +7,10 @@ const router = Router();
 router.post('/execute', async (req: Request, res: Response) => {
   const body: ExecuteRequest = req.body;
 
-  console.log('[TOOL-MS] Incoming request', {
+  console.info('[execute] Request', {
     tool: body.tool,
     businessId: body.context?.businessId,
-    hasArgs: !!body.args,
-    argsKeys: body.args ? Object.keys(body.args) : []
+    args: body.args
   });
 
   if (!body.tool || typeof body.tool !== 'string') {
@@ -26,17 +25,16 @@ router.post('/execute', async (req: Request, res: Response) => {
     return res.json({ success: false, error: 'VALIDATION_ERROR' });
   }
 
-  console.log('[TOOL-MS] Request validated', {
+  console.debug('[execute] Request validated', {
     tool: body.tool,
     businessId: body.context.businessId
   });
 
   const result = await executeTool(body.tool, body.context, body.args);
 
-  console.log('[TOOL-MS] Execution result', {
+  console.info('[execute] Response', {
     tool: body.tool,
-    success: result?.success,
-    hasData: !!result?.data
+    success: result?.success
   });
 
   return res.json(result);

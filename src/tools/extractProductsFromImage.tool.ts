@@ -66,30 +66,30 @@ async function callOpenAI(imageUrl: string): Promise<ExtractedProduct[]> {
 
   const data: any = await response.json();
 
-  console.log('[TOOL-MS] OpenAI raw response received');
+  console.debug('[extractProductsFromImage] OpenAI raw response received');
 
   const outputText =
     data.output_text || data.output?.[0]?.content?.[0]?.text || "";
 
-  console.log('[TOOL-MS] OpenAI output text:', outputText);
+  console.debug('[extractProductsFromImage] OpenAI output text:', outputText);
   if (!outputText) {
-    console.warn('[TOOL-MS] No products extracted from image');
+    console.debug('[extractProductsFromImage] No products extracted from image');
     return [];
   }
 
   try {
     const jsonMatch = outputText.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      console.error('[TOOL-MS] Failed to parse OpenAI response');
+      console.debug('[extractProductsFromImage] Failed to parse OpenAI response');
       return [];
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
     const products = Array.isArray(parsed) ? parsed : [];
-    console.log('[TOOL-MS] Parsed products count:', products.length);
+    console.debug('[extractProductsFromImage] Parsed products count:', products.length);
     return products;
   } catch {
-    console.error('[TOOL-MS] Failed to parse OpenAI response');
+    console.debug('[extractProductsFromImage] Failed to parse OpenAI response');
     return [];
   }
 }
@@ -108,10 +108,7 @@ export const extractProductsFromImageTool: ToolHandler = async (
   context,
   args,
 ): Promise<ToolResult> => {
-  console.log('[TOOL-MS] extract_products_from_image START', {
-    imageUrl: args.imageUrl,
-    businessId: context.businessId
-  });
+  console.info('[extractProductsFromImage] Request', { businessId: context.businessId, args });
 
   if (!args.imageUrl || typeof args.imageUrl !== "string") {
     return { success: false, error: "VALIDATION_ERROR" };
@@ -129,9 +126,9 @@ export const extractProductsFromImageTool: ToolHandler = async (
 
     const validProducts = extractedProducts.filter(isValidProduct);
 
-    console.log('[TOOL-MS] Valid products count:', validProducts.length);
+    console.debug('[extractProductsFromImage] Valid products count:', validProducts.length);
 
-    console.log('[TOOL-MS] Saving products...');
+    console.debug('[extractProductsFromImage] Saving products...');
     let created = 0;
     for (const product of validProducts) {
       try {
@@ -145,21 +142,21 @@ export const extractProductsFromImageTool: ToolHandler = async (
         });
         created++;
       } catch (error) {
-        console.error(`Failed to create product: ${error}`);
+        console.debug(`[extractProductsFromImage] Failed to create product: ${error}`);
       }
     }
 
-    console.log('[TOOL-MS] Products saved:', created);
+    console.debug('[extractProductsFromImage] Products saved:', created);
 
-    return {
+    const result = {
       success: true,
       data: { created },
     };
+
+    console.info('[extractProductsFromImage] Response', { success: true, created });
+    return result;
   } catch (error: any) {
-    console.error('[TOOL-MS] ERROR in extract_products_from_image', {
-      message: error.message,
-      stack: error.stack
-    });
+    console.info('[extractProductsFromImage] Response', { success: false, error: error.message });
 
     if (error.message === "TIMEOUT") {
       throw error;
