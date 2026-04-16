@@ -31,6 +31,7 @@ export const createProductTool: ToolHandler = async (
       imageUrl: args.imageUrl ?? null,
       sourceUrl: args.sourceUrl ?? null,
       sourceType: args.sourceType ?? null,
+      keywords: context.keywords || [],
     }),
     timeout,
   ]);

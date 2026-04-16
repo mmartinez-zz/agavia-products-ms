@@ -31,6 +31,7 @@ function parseISODate(value?: string): Date | null {
 
 export const listProductsTool: ToolHandler = async (
   context,
+  
   args,
 ): Promise<ToolResult> => {
   console.info('[listProducts] Request', { businessId: context.businessId, args });
@@ -40,8 +41,12 @@ export const listProductsTool: ToolHandler = async (
   const filters = args.filters || {};
   const text: string | undefined = filters.text?.trim();
   const businessId = context.businessId;
+  const orderField = args.orderBy || 'createdAt';
+  const orderDirection = args.orderDirection || 'desc';
 
   const dateFilter = buildDateFilter(filters.dateFrom, filters.dateTo);
+
+  const searchTokens = text ? text.toLowerCase().split(/\s+/).filter(t => t.length > 0) : [];
 
   const where: Prisma.ProductWhereInput = {
     businessId,
@@ -50,6 +55,7 @@ export const listProductsTool: ToolHandler = async (
       OR: [
         { title: { contains: text, mode: "insensitive" } },
         { description: { contains: text, mode: "insensitive" } },
+        ...(searchTokens.length > 0 ? [{ keywords: { hasSome: searchTokens } }] : []),
       ],
     }),
   };
@@ -57,7 +63,7 @@ export const listProductsTool: ToolHandler = async (
   const [products, total] = await Promise.all([
     prisma.product.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: { [orderField]: orderDirection },
       take: limit,
       skip: offset,
     }),

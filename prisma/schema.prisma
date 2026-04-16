@@ -19,7 +19,9 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   displayId   Int
+  keywords    String[] @default([])
 
+  @@unique([businessId, displayId])
   @@index([businessId, displayId])
   @@index([businessId])
   @@map("products")
@@ -29,7 +31,7 @@ model business_agents {
   id           String     @id
   businessId   String
   enabled      Boolean    @default(true)
-  systemPrompt String
+  systemPrompt String?
   capabilities Json?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime
@@ -118,17 +120,6 @@ model message_logs {
   @@index([leadId])
 }
 
-model telegram_sessions {
-  id         String               @id
-  chatId     String               @unique
-  businessId String
-  state      TelegramSessionState @default(IDLE)
-  tempUrl    String?
-  tempMargin Float?
-  createdAt  DateTime             @default(now())
-  updatedAt  DateTime
-}
-
 model tools {
   id        String   @id
   name      String   @unique
@@ -138,6 +129,19 @@ model tools {
   enabled   Boolean  @default(true)
   metadata  Json?
   createdAt DateTime @default(now())
+}
+
+model trace_logs {
+  id         String   @id
+  traceId    String
+  businessId String
+  totalTime  Int
+  steps      Json
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+  @@index([createdAt])
+  @@index([traceId])
 }
 
 enum ConversationStateEnum {
@@ -160,10 +164,4 @@ enum LeadStatus {
 enum MessageDirection {
   INBOUND
   OUTBOUND
-}
-
-enum TelegramSessionState {
-  IDLE
-  WAITING_URL
-  WAITING_MARGIN
 }
