@@ -3,6 +3,7 @@ import { ToolHandler, ToolResult } from "../../common/types";
 import { ProductsService } from "../../products/products.service";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
+import { generateKeywords } from "../helpers/generateKeywords";
 
 const logger = new Logger("createProductTool");
 
@@ -207,6 +208,19 @@ export const createProductTool: ToolHandler = async (
   }
 
   logger.debug(`[createProduct] Product created successfully - id: ${product.id}, displayId: ${product.displayId}`);
+
+  generateKeywords(product.title, product.description)
+    .then((keywords) => {
+      if (keywords.length === 0) return;
+      const repository = ProductsService.getRepository();
+      return repository.updateKeywords(product.id, context.businessId, keywords);
+    })
+    .then(() => {
+      logger.debug(`[createProduct] Keywords updated async for product: ${product.id}`);
+    })
+    .catch((err) => {
+      logger.error(`[createProduct] Failed to generate/update keywords for product ${product.id}: ${err.message}`);
+    });
 
   const result = {
     success: true,

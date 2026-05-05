@@ -191,6 +191,17 @@ export class ProductRepository {
     return result.rows[0] || null;
   }
 
+  async updateKeywords(productId: string, businessId: string, keywords: string[]) {
+    const normalizedKeywords = keywords
+      .map((k) => k.toLowerCase().trim())
+      .filter((k) => k.length > 2);
+
+    await this.db.query(
+      `UPDATE products SET keywords = $1, "updatedAt" = NOW() WHERE id = $2 AND "businessId" = $3`,
+      [normalizedKeywords, productId, businessId],
+    );
+  }
+
   async deactivateProduct(businessId: string, productId: string) {
     const result = await this.db.query(
       `UPDATE products

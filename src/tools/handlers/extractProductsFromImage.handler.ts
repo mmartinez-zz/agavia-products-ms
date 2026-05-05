@@ -1,5 +1,6 @@
 import { Logger } from "@nestjs/common";
 import { ToolHandler, ToolResult } from "../../common/types";
+import { callOpenAI } from "../helpers/openai.adapter";
 
 const logger = new Logger("extractProductsFromImageTool");
 
@@ -35,51 +36,24 @@ interface ExtractedProduct {
   description?: string;
 }
 
-async function callOpenAI(imageUrl: string): Promise<ExtractedProduct[]> {
-  logger.debug(`[callOpenAI] Calling OpenAI API with imageUrl: ${imageUrl}`);
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      input: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: PROMPT,
-            },
-            {
-              type: "input_image",
-              image_url: imageUrl,
-            },
-          ],
-        },
+async function extractProductsFromOpenAI(imageUrl: string): Promise<ExtractedProduct[]> {
+  logger.debug(`[extractProductsFromOpenAI] Calling OpenAI API with imageUrl: ${imageUrl}`);
+
+  const outputText = await callOpenAI([
+    {
+      role: "user",
+      content: [
+        { type: "input_text", text: PROMPT },
+        { type: "input_image", image_url: imageUrl },
       ],
-    }),
-  });
-
-  if (!response.ok) {
-    logger.error(`[callOpenAI] OpenAI API error - status: ${response.status}`);
-    throw new Error("OPENAI_ERROR");
-  }
-
-  logger.debug(`[callOpenAI] OpenAI API response OK`);
-
-  const data: any = await response.json();
+    },
+  ]);
 
   logger.debug("[extractProductsFromImage] OpenAI raw response received");
-
-  const outputText =
-    data.output_text || data.output?.[0]?.content?.[0]?.text || "";
-
   logger.debug(
     `[extractProductsFromImage] OpenAI output text: ${outputText.substring(0, 100)}...`,
   );
+
   if (!outputText) {
     logger.debug("[extractProductsFromImage] No products extracted from image");
     return [];
@@ -88,9 +62,7 @@ async function callOpenAI(imageUrl: string): Promise<ExtractedProduct[]> {
   try {
     const jsonMatch = outputText.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      logger.debug(
-        "[extractProductsFromImage] Failed to parse OpenAI response",
-      );
+      logger.debug("[extractProductsFromImage] Failed to parse OpenAI response");
       return [];
     }
 
@@ -137,7 +109,7 @@ export const extractProductsFromImageTool: ToolHandler = async (
   try {
     logger.debug(`[extractProductsFromImage] Starting OpenAI extraction`);
     const extractedProducts = await Promise.race([
-      callOpenAI(args.imageUrl),
+      extractProductsFromOpenAI(args.imageUrl),
       timeout,
     ]);
 
