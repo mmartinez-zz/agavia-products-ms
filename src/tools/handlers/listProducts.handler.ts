@@ -131,17 +131,26 @@ const limit = Math.min(args.limit || 10, 50);
 
   const orderClause = `"${safeOrderField}" ${safeOrderDirection.toUpperCase()}`;
 
+  logger.debug(`[listProducts] Resolved order: ${orderClause}, limit: ${limit}, offset: ${offset}`);
   logger.debug(`[listProducts] Calling repository.listProducts`);
-  const repository = ProductsService.getRepository();
-  const { products, total } = await repository.listProducts({
-    businessId,
-    whereClauses,
-    params,
-    orderClause,
-    limit,
-    offset,
-    paramIndex,
-  });
+
+  let products: any[];
+  let total: number;
+  try {
+    const repository = ProductsService.getRepository();
+    ({ products, total } = await repository.listProducts({
+      businessId,
+      whereClauses,
+      params,
+      orderClause,
+      limit,
+      offset,
+      paramIndex,
+    }));
+  } catch (error: any) {
+    logger.error(`[listProducts] Error querying products - ${error.message}`, error.stack);
+    return { success: false, error: "INTERNAL_ERROR" };
+  }
 
   logger.debug(`[listProducts] Query result - found: ${products.length}, total: ${total}`);
 

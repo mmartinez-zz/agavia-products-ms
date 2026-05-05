@@ -34,10 +34,12 @@ async function processImage(
   }
 
   if (parsedUrl.hostname.includes("supabase")) {
+    logger.debug(`[processImage] Image already in Supabase, skipping upload: ${imageUrl}`);
     return imageUrl;
   }
 
   const isTwilio = parsedUrl.hostname.includes("twilio");
+  logger.debug(`[processImage] Starting image download - isTwilio: ${isTwilio}, url: ${imageUrl}`);
   try {
     let response;
 
@@ -80,18 +82,23 @@ async function processImage(
     }
 
     if (!response.ok) {
+      logger.error(`[processImage] Download failed - status: ${response.status}, url: ${imageUrl}`);
       throw new Error("IMAGE_DOWNLOAD_FAILED");
     }
 
     const contentType = response.headers.get("content-type");
+    logger.debug(`[processImage] Downloaded - contentType: ${contentType}`);
 
     if (!contentType || !contentType.startsWith("image/")) {
+      logger.error(`[processImage] Invalid content-type: ${contentType}`);
       throw new Error("INVALID_IMAGE_TYPE");
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
+    logger.debug(`[processImage] Buffer size: ${buffer.length} bytes`);
 
     if (buffer.length > 5 * 1024 * 1024) {
+      logger.error(`[processImage] Image too large: ${buffer.length} bytes`);
       throw new Error("IMAGE_TOO_LARGE");
     }
 
@@ -100,10 +107,13 @@ async function processImage(
       .jpeg({ quality: 75 })
       .toBuffer();
 
+    logger.debug(`[processImage] Optimized buffer size: ${optimizedBuffer.length} bytes`);
+
     const fileName = `products/${businessId}/${Date.now()}-${Math.random()
       .toString(36)
       .substring(2)}.jpg`;
 
+    logger.debug(`[processImage] Uploading to Supabase - fileName: ${fileName}`);
     const supabase = getSupabaseClient();
 
     const { error } = await supabase.storage
@@ -114,6 +124,7 @@ async function processImage(
       });
 
     if (error) {
+      logger.error(`[processImage] Supabase upload failed - error: ${error.message}`);
       throw new Error("SUPABASE_UPLOAD_FAILED");
     }
 
@@ -121,6 +132,7 @@ async function processImage(
       .from(process.env.SUPABASE_BUCKET!)
       .getPublicUrl(fileName);
 
+    logger.debug(`[processImage] Upload successful - publicUrl: ${publicUrl.publicUrl}`);
     return publicUrl.publicUrl;
   } catch (error) {
     logger.error(
@@ -142,6 +154,7 @@ export const createProductTool: ToolHandler = async (
   logger.debug(`[createProduct] Title extracted: "${title}"`);
 
   if (!title) {
+    logger.debug(`[createProduct] Validation failed - missing title`);
     return {
       success: true,
       data: {
@@ -166,7 +179,7 @@ export const createProductTool: ToolHandler = async (
   );
 
   if (typeof args.price !== "number") {
-    logger.debug(`[createProduct] Invalid price type: ${typeof args.price}`);
+    logger.debug(`[createProduct] Validation failed - price type: ${typeof args.price}, value: ${args.price}`);
     return {
       success: true,
       data: {
@@ -177,6 +190,7 @@ export const createProductTool: ToolHandler = async (
   }
 
   logger.debug(`[createProduct] Price validated: ${args.price}`);
+  logger.debug(`[createProduct] Description: "${args.description ?? 'none'}", sourceType: ${args.sourceType ?? 'none'}, imageUrl: ${finalImageUrl ?? 'none'}`);
 
   let product;
 
@@ -207,7 +221,7 @@ export const createProductTool: ToolHandler = async (
     return { success: false, error: "INTERNAL_ERROR" };
   }
 
-  logger.debug(`[createProduct] Product created successfully - id: ${product.id}, displayId: ${product.displayId}`);
+  logger.debug(`[createProduct] Product created successfully - id: ${product.id}, displayId: ${product.displayId}, title: "${product.title}", price: ${product.price}`);
 
   generateKeywords(product.title, product.description)
     .then((keywords) => {

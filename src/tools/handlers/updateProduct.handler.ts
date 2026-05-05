@@ -22,12 +22,20 @@ export const updateProductTool: ToolHandler = async (
     };
   }
 
-  logger.debug(`[updateProduct] Calling repository.getProductById`);
-  const repository = ProductsService.getRepository();
-  const existing = await repository.getProductById(context.businessId, productId);
+  let repository: ReturnType<typeof ProductsService.getRepository>;
+  let existing: any;
+
+  try {
+    logger.debug(`[updateProduct] Calling repository.getProductById`);
+    repository = ProductsService.getRepository();
+    existing = await repository.getProductById(context.businessId, productId);
+  } catch (error: any) {
+    logger.error(`[updateProduct] Error fetching product - ${error.message}`, error.stack);
+    return { success: false, error: "INTERNAL_ERROR" };
+  }
 
   if (!existing) {
-    logger.debug(`[updateProduct] Product not found`);
+    logger.debug(`[updateProduct] Product not found - productId: ${productId}, businessId: ${context.businessId}`);
     return {
       success: true,
       data: {
@@ -37,31 +45,35 @@ export const updateProductTool: ToolHandler = async (
     };
   }
 
-  logger.debug(`[updateProduct] Product found - id: ${existing.id}, displayId: ${existing.displayId}`);
+  logger.debug(`[updateProduct] Product found - id: ${existing.id}, displayId: ${existing.displayId}, title: "${existing.title}"`);
 
   // 🔧 BUILD UPDATE
   const dataToUpdate: any = {};
 
   if (typeof args.title === "string" && args.title.trim() !== "") {
     dataToUpdate.title = args.title.trim();
+    logger.debug(`[updateProduct] Will update title: "${dataToUpdate.title}"`);
   }
 
   if (typeof args.price === "number" && args.price > 0) {
     dataToUpdate.price = args.price;
+    logger.debug(`[updateProduct] Will update price: ${dataToUpdate.price}`);
   }
 
   if (typeof args.description === "string") {
     dataToUpdate.description = args.description;
+    logger.debug(`[updateProduct] Will update description: "${dataToUpdate.description}"`);
   }
 
   if (typeof args.imageUrl === "string" && args.imageUrl.startsWith("http")) {
     dataToUpdate.imageUrl = args.imageUrl;
+    logger.debug(`[updateProduct] Will update imageUrl: ${dataToUpdate.imageUrl}`);
   }
 
-  logger.debug(`[updateProduct] Fields to update:`, Object.keys(dataToUpdate));
+  logger.debug(`[updateProduct] Fields to update: [${Object.keys(dataToUpdate).join(", ")}]`);
 
   if (Object.keys(dataToUpdate).length === 0) {
-    logger.debug(`[updateProduct] No fields to update`);
+    logger.debug(`[updateProduct] No valid fields to update provided`);
     return {
       success: true,
       data: {
@@ -72,25 +84,31 @@ export const updateProductTool: ToolHandler = async (
     };
   }
 
-  logger.debug(`[updateProduct] Calling repository.updateProduct`);
-  const updated = await repository.updateProduct({
-    id: existing.id,
-    businessId: context.businessId,
-    title: dataToUpdate.title,
-    price: dataToUpdate.price,
-    description: dataToUpdate.description,
-    imageUrl: dataToUpdate.imageUrl,
-  });
+  let updated: any;
+  try {
+    logger.debug(`[updateProduct] Calling repository.updateProduct - id: ${existing.id}`);
+    updated = await repository.updateProduct({
+      id: existing.id,
+      businessId: context.businessId,
+      title: dataToUpdate.title,
+      price: dataToUpdate.price,
+      description: dataToUpdate.description,
+      imageUrl: dataToUpdate.imageUrl,
+    });
+  } catch (error: any) {
+    logger.error(`[updateProduct] Error updating product - ${error.message}`, error.stack);
+    return { success: false, error: "INTERNAL_ERROR" };
+  }
 
   if (!updated) {
-    logger.error(`[updateProduct] Update failed - no result from repository`);
+    logger.error(`[updateProduct] Update returned no result - id: ${existing.id}`);
     return {
       success: false,
       error: "INTERNAL_ERROR",
     };
   }
 
-  logger.debug(`[updateProduct] Product updated successfully - id: ${updated.id}`);
+  logger.debug(`[updateProduct] Product updated successfully - id: ${updated.id}, displayId: ${updated.displayId}, title: "${updated.title}", price: ${updated.price}`);
 
   // 🎯 RESPONSE UNIFICADA (MISMO CONTRATO QUE CREATE)
   const result = {

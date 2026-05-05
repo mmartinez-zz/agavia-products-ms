@@ -21,7 +21,7 @@ export const getProductByDisplayIdTool: ToolHandler = async (
     !Number.isInteger(displayId) ||
     displayId <= 0
   ) {
-    logger.debug(`[getProductByDisplayId] Invalid displayId validation failed`);
+    logger.debug(`[getProductByDisplayId] Validation failed - displayId type: ${typeof displayId}, value: ${displayId}, isInteger: ${Number.isInteger(displayId)}`);
     return {
       success: true,
       data: {
@@ -31,12 +31,18 @@ export const getProductByDisplayIdTool: ToolHandler = async (
     };
   }
 
-  logger.debug(`[getProductByDisplayId] Calling repository.getProductByDisplayId`);
-  const repository = ProductsService.getRepository();
-  const product = await repository.getProductByDisplayId(context.businessId, displayId);
+  let product: any;
+  try {
+    logger.debug(`[getProductByDisplayId] Calling repository.getProductByDisplayId - displayId: ${displayId}`);
+    const repository = ProductsService.getRepository();
+    product = await repository.getProductByDisplayId(context.businessId, displayId);
+  } catch (error: any) {
+    logger.error(`[getProductByDisplayId] Error fetching product - ${error.message}`, error.stack);
+    return { success: false, error: "INTERNAL_ERROR" };
+  }
 
   if (!product) {
-    logger.debug(`[getProductByDisplayId] Product not found`);
+    logger.debug(`[getProductByDisplayId] Product not found - displayId: ${displayId}, businessId: ${context.businessId}`);
     return {
       success: true,
       data: {
@@ -46,7 +52,7 @@ export const getProductByDisplayIdTool: ToolHandler = async (
     };
   }
 
-  logger.debug(`[getProductByDisplayId] Product found - id: ${product.id}, title: "${product.title}"`);
+  logger.debug(`[getProductByDisplayId] Product found - id: ${product.id}, displayId: ${product.displayId}, title: "${product.title}", price: ${product.price}`);
 
   const response = {
     success: true,
