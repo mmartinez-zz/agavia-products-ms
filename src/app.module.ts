@@ -5,7 +5,7 @@ import { ObservabilityModule } from '@mmartinez-zz/agavia-observability';
 @Module({
   imports: [
     ObservabilityModule.forRoot({
-      service: 'agavia-products-ms',
+      serviceName: 'agavia-products-ms',
       enableGlobalInterceptor: true,
       skipRoutes: ['/health'],
     }),
