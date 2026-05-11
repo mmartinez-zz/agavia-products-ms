@@ -1,11 +1,9 @@
-import { Logger } from "@nestjs/common";
+import { logger } from "@mmartinez-zz/agavia-observability";
 import { ToolHandler, ToolResult } from "../../common/types";
 import { ProductsService } from "../../products/products.service";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 import { generateKeywords } from "../helpers/generateKeywords";
-
-const logger = new Logger("createProductTool");
 
 const TIMEOUT_MS = 5000;
 
@@ -34,12 +32,10 @@ async function processImage(
   }
 
   if (parsedUrl.hostname.includes("supabase")) {
-    logger.debug(`[processImage] Image already in Supabase, skipping upload: ${imageUrl}`);
-    return imageUrl;
+      return imageUrl;
   }
 
   const isTwilio = parsedUrl.hostname.includes("twilio");
-  logger.debug(`[processImage] Starting image download - isTwilio: ${isTwilio}, url: ${imageUrl}`);
   try {
     let response;
 
@@ -82,23 +78,21 @@ async function processImage(
     }
 
     if (!response.ok) {
-      logger.error(`[processImage] Download failed - status: ${response.status}, url: ${imageUrl}`);
+        logger.error({ event: 'image_download_failed', status: response.status });
       throw new Error("IMAGE_DOWNLOAD_FAILED");
     }
 
     const contentType = response.headers.get("content-type");
-    logger.debug(`[processImage] Downloaded - contentType: ${contentType}`);
 
     if (!contentType || !contentType.startsWith("image/")) {
-      logger.error(`[processImage] Invalid content-type: ${contentType}`);
+      logger.error({ event: 'image_invalid_type', contentType });
       throw new Error("INVALID_IMAGE_TYPE");
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
-    logger.debug(`[processImage] Buffer size: ${buffer.length} bytes`);
 
     if (buffer.length > 5 * 1024 * 1024) {
-      logger.error(`[processImage] Image too large: ${buffer.length} bytes`);
+      logger.error({ event: 'image_too_large', bytes: buffer.length });
       throw new Error("IMAGE_TOO_LARGE");
     }
 
@@ -107,13 +101,10 @@ async function processImage(
       .jpeg({ quality: 75 })
       .toBuffer();
 
-    logger.debug(`[processImage] Optimized buffer size: ${optimizedBuffer.length} bytes`);
-
     const fileName = `products/${businessId}/${Date.now()}-${Math.random()
       .toString(36)
       .substring(2)}.jpg`;
 
-    logger.debug(`[processImage] Uploading to Supabase - fileName: ${fileName}`);
     const supabase = getSupabaseClient();
 
     const { error } = await supabase.storage
@@ -124,7 +115,7 @@ async function processImage(
       });
 
     if (error) {
-      logger.error(`[processImage] Supabase upload failed - error: ${error.message}`);
+      logger.error({ event: 'supabase_upload_failed', error: error.message });
       throw new Error("SUPABASE_UPLOAD_FAILED");
     }
 
@@ -132,13 +123,9 @@ async function processImage(
       .from(process.env.SUPABASE_BUCKET!)
       .getPublicUrl(fileName);
 
-    logger.debug(`[processImage] Upload successful - publicUrl: ${publicUrl.publicUrl}`);
     return publicUrl.publicUrl;
   } catch (error) {
-    logger.error(
-      `[processImage] Failed - error: ${(error as Error).message}, imageUrl: ${imageUrl}, businessId: ${businessId}, isTwilio: ${isTwilio}`,
-    );
-
+    logger.error({ event: 'image_process_failed', error: (error as Error).message });
     return imageUrl;
   }
 }
@@ -147,14 +134,10 @@ export const createProductTool: ToolHandler = async (
   context,
   args,
 ): Promise<ToolResult> => {
-  logger.log(`[createProduct] Request - businessId: ${context.businessId}`);
-  logger.debug(`[createProduct] Args received:`, JSON.stringify(args));
+  logger.log({ event: 'tool_start', tool: 'create_product', businessId: context.businessId });
 
   const title = typeof args.title === "string" ? args.title.trim() : "";
-  logger.debug(`[createProduct] Title extracted: "${title}"`);
-
   if (!title) {
-    logger.debug(`[createProduct] Validation failed - missing title`);
     return {
       success: true,
       data: {
@@ -167,11 +150,7 @@ export const createProductTool: ToolHandler = async (
   let finalImageUrl: string | null = null;
 
   if (args.imageUrl) {
-    logger.debug(`[createProduct] Processing image: ${args.imageUrl}`);
     finalImageUrl = await processImage(args.imageUrl, context.businessId);
-    logger.debug(`[createProduct] Image processed: ${finalImageUrl}`);
-  } else {
-    logger.debug(`[createProduct] No image provided`);
   }
 
   const timeout = new Promise<never>((_, reject) =>
@@ -179,7 +158,6 @@ export const createProductTool: ToolHandler = async (
   );
 
   if (typeof args.price !== "number") {
-    logger.debug(`[createProduct] Validation failed - price type: ${typeof args.price}, value: ${args.price}`);
     return {
       success: true,
       data: {
@@ -189,13 +167,9 @@ export const createProductTool: ToolHandler = async (
     };
   }
 
-  logger.debug(`[createProduct] Price validated: ${args.price}`);
-  logger.debug(`[createProduct] Description: "${args.description ?? 'none'}", sourceType: ${args.sourceType ?? 'none'}, imageUrl: ${finalImageUrl ?? 'none'}`);
-
   let product;
 
   try {
-    logger.debug(`[createProduct] Calling repository.createProduct`);
     const repository = ProductsService.getRepository();
     product = await Promise.race([
       repository.createProduct({
@@ -212,16 +186,12 @@ export const createProductTool: ToolHandler = async (
     ]);
   } catch (error: any) {
     if (error.message === "TIMEOUT") {
-      logger.error(`[createProduct] Timeout creating product`);
+      logger.error({ event: 'tool_error', tool: 'create_product', error: 'timeout' });
       return { success: false, error: "TIMEOUT" };
     }
-
-    logger.error(`[createProduct] Error - ${error.message}`, error.stack);
-
+    logger.error({ event: 'tool_error', tool: 'create_product', error: error.message });
     return { success: false, error: "INTERNAL_ERROR" };
   }
-
-  logger.debug(`[createProduct] Product created successfully - id: ${product.id}, displayId: ${product.displayId}, title: "${product.title}", price: ${product.price}`);
 
   generateKeywords(product.title, product.description)
     .then((keywords) => {
@@ -229,11 +199,8 @@ export const createProductTool: ToolHandler = async (
       const repository = ProductsService.getRepository();
       return repository.updateKeywords(product.id, context.businessId, keywords);
     })
-    .then(() => {
-      logger.debug(`[createProduct] Keywords updated async for product: ${product.id}`);
-    })
     .catch((err) => {
-      logger.error(`[createProduct] Failed to generate/update keywords for product ${product.id}: ${err.message}`);
+      logger.error({ event: 'keywords_update_failed', productId: product.id, error: err.message });
     });
 
   const result = {
@@ -256,8 +223,6 @@ export const createProductTool: ToolHandler = async (
     },
   };
 
-  logger.log(
-    `[createProduct] Response - success: ${result.success}, displayId: ${product.displayId}`,
-  );
+  logger.log({ event: 'tool_complete', tool: 'create_product', displayId: product.displayId });
   return result;
 };

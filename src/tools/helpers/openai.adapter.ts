@@ -1,6 +1,4 @@
-import { Logger } from "@nestjs/common";
-
-const logger = new Logger("openaiAdapter");
+import { logger } from "@mmartinez-zz/agavia-observability";
 
 export interface OpenAIMessage {
   role: "user" | "assistant";
@@ -25,7 +23,7 @@ export async function callOpenAI(messages: OpenAIMessage[]): Promise<string> {
   });
 
   if (!response.ok) {
-    logger.error(`[callOpenAI] OpenAI API error - status: ${response.status}`);
+    logger.error({ event: 'openai_api_error', status: response.status });
     throw new Error("OPENAI_ERROR");
   }
 

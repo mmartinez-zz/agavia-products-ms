@@ -1,8 +1,6 @@
-import { Logger } from "@nestjs/common";
+import { logger } from "@mmartinez-zz/agavia-observability";
 import { ToolHandler, ToolResult } from "../../common/types";
 import { ProductsService } from "../../products/products.service";
-
-const logger = new Logger("listProductsTool");
 
 function normalize(text: string): string {
   return text
@@ -45,8 +43,7 @@ export const listProductsTool: ToolHandler = async (
 
   args,
 ): Promise<ToolResult> => {
-  logger.log(`[listProducts] Request - businessId: ${context.businessId}`);
-  logger.debug(`[listProducts] Args received:`, JSON.stringify(args));
+  logger.log({ event: 'tool_start', tool: 'list_products', businessId: context.businessId });
 
 const limit = Math.min(args.limit || 10, 50);
   const offset = Math.max(args.offset || 0, 0);
@@ -56,13 +53,7 @@ const limit = Math.min(args.limit || 10, 50);
   const orderField = args.orderBy || "createdAt";
   const orderDirection = args.orderDirection || "desc";
 
-  logger.debug(`[listProducts] Pagination - limit: ${limit}, offset: ${offset}`);
-  logger.debug(`[listProducts] Search text: "${text || 'none'}"`);
-  logger.debug(`[listProducts] Order: ${orderField} ${orderDirection}`);
-
   const dateFilter = buildDateFilter(filters.dateFrom, filters.dateTo);
-  logger.debug(`[listProducts] Date filter:`, dateFilter);
-
   const stopwords = ["de", "la", "el", "los", "las", "y", "con"];
 
   const searchTokens = text
@@ -71,7 +62,16 @@ const limit = Math.min(args.limit || 10, 50);
         .filter((t) => t.length > 2 && !stopwords.includes(t))
     : [];
 
-  logger.debug(`[listProducts] Search tokens:`, searchTokens);
+  const displayIdFromText = text
+    ? (() => {
+        const match = text.trim().match(/\b(\d+)\b/);
+        if (match) {
+          const n = parseInt(match[1], 10);
+          return Number.isInteger(n) && n > 0 ? n : null;
+        }
+        return null;
+      })()
+    : null;
 
   let whereClauses: string[] = [`"businessId" = $1`, `is_active = true`];
   const params: any[] = [businessId];
@@ -107,13 +107,15 @@ const limit = Math.min(args.limit || 10, 50);
     return condition;
   });
 
-  const joinOperator = searchTokens.length > 1 ? "AND" : "OR";
-  if (tokenConditions.length > 0) {
-    whereClauses.push(`(${tokenConditions.join(` ${joinOperator} `)})`);
+  if (displayIdFromText !== null) {
+    tokenConditions.push(`"displayId" = $${paramIndex}`);
+    params.push(displayIdFromText);
+    paramIndex++;
   }
 
-  logger.debug(`[listProducts] WHERE clauses count: ${whereClauses.length}`);
-  logger.debug(`[listProducts] Query params count: ${params.length}`);
+  if (tokenConditions.length > 0) {
+    whereClauses.push(`(${tokenConditions.join(` OR `)})`);
+  }
 
   const whereClause = whereClauses.join(" AND ");
   const allowedOrderFields = ["createdAt", "price", "title", "displayId"];
@@ -131,9 +133,6 @@ const limit = Math.min(args.limit || 10, 50);
 
   const orderClause = `"${safeOrderField}" ${safeOrderDirection.toUpperCase()}`;
 
-  logger.debug(`[listProducts] Resolved order: ${orderClause}, limit: ${limit}, offset: ${offset}`);
-  logger.debug(`[listProducts] Calling repository.listProducts`);
-
   let products: any[];
   let total: number;
   try {
@@ -148,11 +147,9 @@ const limit = Math.min(args.limit || 10, 50);
       paramIndex,
     }));
   } catch (error: any) {
-    logger.error(`[listProducts] Error querying products - ${error.message}`, error.stack);
+    logger.error({ event: 'tool_error', tool: 'list_products', error: error.message });
     return { success: false, error: "INTERNAL_ERROR" };
   }
-
-  logger.debug(`[listProducts] Query result - found: ${products.length}, total: ${total}`);
 
   const result = products.map((p) => ({
     id: p.id,
@@ -170,8 +167,6 @@ const limit = Math.min(args.limit || 10, 50);
   }));
 
   const hasMore = offset + result.length < total;
-  logger.debug(`[listProducts] Has more: ${hasMore}`);
-
   const response = {
     success: true,
     data: {
@@ -188,8 +183,6 @@ const limit = Math.min(args.limit || 10, 50);
     },
   };
 
-  logger.log(
-    `[listProducts] Response - success: true, count: ${result.length}, total: ${total}`,
-  );
+  logger.log({ event: 'tool_complete', tool: 'list_products', count: result.length, total, hasMore });
   return response;
 };
