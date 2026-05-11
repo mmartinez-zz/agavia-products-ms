@@ -1,14 +1,12 @@
-import { Controller, Post, Body, Get } from '@nestjs/common';
+import { Controller, Post, Body, Get, Logger } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { ToolsService } from '../tools/tools.service';
 import { ExecuteRequest, ToolResult } from '../common/types';
-import { Logger } from '@nestjs/common';
-
-const logger = new Logger('ProductsController');
 
 @Controller()
 export class ProductsController {
-  private readonly logger = new Logger('ProductsController');
+  private readonly logger = new Logger(ProductsController.name);
+
   constructor(
     private readonly productsService: ProductsService,
     private readonly toolsService: ToolsService,
@@ -21,12 +19,6 @@ export class ProductsController {
 
   @Post('/execute')
   async execute(@Body() body: ExecuteRequest): Promise<ToolResult> {
-    logger.log('[execute] Request', {
-      tool: body.tool,
-      businessId: body.context?.businessId,
-      args: body.args,
-    });
-
     if (!body.tool || typeof body.tool !== 'string') {
       return { success: false, error: 'VALIDATION_ERROR' };
     }
@@ -39,17 +31,14 @@ export class ProductsController {
       return { success: false, error: 'VALIDATION_ERROR' };
     }
 
-    logger.debug('[execute] Request validated', {
-      tool: body.tool,
-      businessId: body.context.businessId,
-    });
-
     const result = await this.toolsService.execute(body.tool, body.context, body.args);
 
-    logger.log('[execute] Response', {
+    this.logger.log(JSON.stringify({
+      event: 'tool_invoked',
       tool: body.tool,
+      businessId: body.context.businessId,
       success: result?.success,
-    });
+    }));
 
     return result;
   }

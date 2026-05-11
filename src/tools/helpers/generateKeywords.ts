@@ -24,8 +24,6 @@ export async function generateKeywords(
     ? `Título: ${title}\nDescripción: ${description}`
     : `Título: ${title}`;
 
-  logger.debug(`[generateKeywords] Calling OpenAI for product: "${title}"`);
-
   let outputText: string;
   try {
     outputText = await callOpenAI([
@@ -35,31 +33,20 @@ export async function generateKeywords(
       },
     ]);
   } catch (error: any) {
-    logger.error(`[generateKeywords] OpenAI error: ${error.message}`);
+    logger.error(JSON.stringify({ event: 'keywords_openai_error', error: error.message }));
     return [];
   }
 
-  if (!outputText) {
-    logger.debug("[generateKeywords] Empty response from OpenAI");
-    return [];
-  }
+  if (!outputText) return [];
 
   try {
     const jsonMatch = outputText.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      logger.debug("[generateKeywords] Could not find JSON array in response");
-      return [];
-    }
-
+    if (!jsonMatch) return [];
     const parsed = JSON.parse(jsonMatch[0]);
-    const keywords: string[] = Array.isArray(parsed)
+    return Array.isArray(parsed)
       ? parsed.filter((k) => typeof k === "string" && k.trim().length > 0).slice(0, 6)
       : [];
-
-    logger.debug(`[generateKeywords] Generated ${keywords.length} keywords: ${keywords.join(", ")}`);
-    return keywords;
   } catch {
-    logger.debug("[generateKeywords] Failed to parse OpenAI response");
     return [];
   }
 }

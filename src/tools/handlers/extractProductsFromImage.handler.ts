@@ -37,8 +37,6 @@ interface ExtractedProduct {
 }
 
 async function extractProductsFromOpenAI(imageUrl: string): Promise<ExtractedProduct[]> {
-  logger.debug(`[extractProductsFromOpenAI] Calling OpenAI API with imageUrl: ${imageUrl}`);
-
   const outputText = await callOpenAI([
     {
       role: "user",
@@ -49,31 +47,14 @@ async function extractProductsFromOpenAI(imageUrl: string): Promise<ExtractedPro
     },
   ]);
 
-  logger.debug("[extractProductsFromImage] OpenAI raw response received");
-  logger.debug(
-    `[extractProductsFromImage] OpenAI output text: ${outputText.substring(0, 100)}...`,
-  );
-
-  if (!outputText) {
-    logger.debug("[extractProductsFromImage] No products extracted from image");
-    return [];
-  }
+  if (!outputText) return [];
 
   try {
     const jsonMatch = outputText.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      logger.debug("[extractProductsFromImage] Failed to parse OpenAI response");
-      return [];
-    }
-
+    if (!jsonMatch) return [];
     const parsed = JSON.parse(jsonMatch[0]);
-    const products = Array.isArray(parsed) ? parsed : [];
-    logger.debug(
-      `[extractProductsFromImage] Parsed products count: ${products.length}`,
-    );
-    return products;
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    logger.debug("[extractProductsFromImage] Failed to parse OpenAI response");
     return [];
   }
 }
@@ -92,13 +73,9 @@ export const extractProductsFromImageTool: ToolHandler = async (
   context,
   args,
 ): Promise<ToolResult> => {
-  logger.log(
-    `[extractProductsFromImage] Request - businessId: ${context.businessId}`,
-  );
-  logger.debug(`[extractProductsFromImage] Args received:`, JSON.stringify(args));
+  logger.log(JSON.stringify({ event: 'tool_start', tool: 'extract_products_from_image', businessId: context.businessId }));
 
   if (!args.imageUrl || typeof args.imageUrl !== "string") {
-    logger.debug(`[extractProductsFromImage] Invalid or missing imageUrl`);
     return { success: false, error: "VALIDATION_ERROR" };
   }
 
@@ -107,21 +84,14 @@ export const extractProductsFromImageTool: ToolHandler = async (
   );
 
   try {
-    logger.debug(`[extractProductsFromImage] Starting OpenAI extraction`);
     const extractedProducts = await Promise.race([
       extractProductsFromOpenAI(args.imageUrl),
       timeout,
     ]);
 
-    logger.debug(`[extractProductsFromImage] Extracted products count: ${extractedProducts.length}`);
     const validProducts = extractedProducts.filter(isValidProduct);
 
-    logger.debug(
-      `[extractProductsFromImage] Valid products count: ${validProducts.length}`,
-    );
-
     if (validProducts.length === 0) {
-      logger.debug(`[extractProductsFromImage] No valid products found`);
       return {
         success: true,
         data: {
@@ -130,7 +100,6 @@ export const extractProductsFromImageTool: ToolHandler = async (
         },
       };
     }
-    logger.debug(`[extractProductsFromImage] Normalizing ${validProducts.length} products`);
     const normalizedProducts = validProducts.map((p) => ({
       title: p.title.trim(),
       price: p.price,
@@ -149,21 +118,13 @@ export const extractProductsFromImageTool: ToolHandler = async (
       },
     };
 
-    logger.log(
-      `[extractProductsFromImage] Response - success: true, count: ${validProducts.length}`,
-    );
+    logger.log(JSON.stringify({ event: 'tool_complete', tool: 'extract_products_from_image', count: validProducts.length }));
     return result;
   } catch (error: any) {
-    logger.error(
-      `[extractProductsFromImage] Error: ${error.message}`,
-      error.stack
-    );
-
+    logger.error(JSON.stringify({ event: 'tool_error', tool: 'extract_products_from_image', error: error.message }));
     if (error.message === "TIMEOUT") {
-      logger.error(`[extractProductsFromImage] Timeout extracting products`);
       return { success: false, error: "TIMEOUT" };
     }
-    logger.error(`[extractProductsFromImage] Internal error`);
     return { success: false, error: "INTERNAL_ERROR" };
   }
 };

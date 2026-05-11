@@ -10,14 +10,11 @@ export const deactivateProductTool: ToolHandler = async (
   context,
   args
 ): Promise<ToolResult> => {
-  logger.log(`[deactivateProduct] Request - businessId: ${context.businessId}, productId: ${args.productId}`);
-  logger.debug(`[deactivateProduct] Args received:`, JSON.stringify(args));
+  logger.log(JSON.stringify({ event: 'tool_start', tool: 'deactivate_product', businessId: context.businessId }));
 
   const productId = args.productId;
-  logger.debug(`[deactivateProduct] ProductId: ${productId}`);
 
   if (!productId) {
-    logger.debug(`[deactivateProduct] Missing productId`);
     return { success: false, error: "VALIDATION_ERROR" };
   }
 
@@ -26,17 +23,13 @@ export const deactivateProductTool: ToolHandler = async (
   );
 
   try {
-    logger.debug(`[deactivateProduct] Calling repository.deactivateProduct`);
     const repository = ProductsService.getRepository();
     const result = await Promise.race([
       repository.deactivateProduct(context.businessId, productId),
       timeout,
     ]);
 
-    logger.debug(`[deactivateProduct] Repository result - rowCount: ${result.rowCount}`);
-
     if (result.rowCount === 0) {
-      logger.debug(`[deactivateProduct] Product not found or already deactivated`);
       return {
         success: true,
         data: {
@@ -47,8 +40,7 @@ export const deactivateProductTool: ToolHandler = async (
     }
 
     const product = result.product;
-    logger.debug(`[deactivateProduct] Product deactivated successfully - id: ${product.id}, title: "${product.title}"`);
-
+    logger.log(JSON.stringify({ event: 'tool_complete', tool: 'deactivate_product', productId: product.id }));
     return {
       success: true,
       data: {
@@ -62,9 +54,9 @@ export const deactivateProductTool: ToolHandler = async (
       },
     };
   } catch (error) {
-    logger.error(`[deactivateProduct] Error: ${(error as Error).message}`, (error as Error).stack);
-    if ((error as Error).message === "TIMEOUT") {
-      logger.error(`[deactivateProduct] Timeout deactivating product`);
+    const errMsg = (error as Error).message;
+    logger.error(JSON.stringify({ event: 'tool_error', tool: 'deactivate_product', error: errMsg }));
+    if (errMsg === "TIMEOUT") {
       return { success: false, error: "TIMEOUT" };
     }
     return {
