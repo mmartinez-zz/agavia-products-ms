@@ -1,8 +1,6 @@
-import { Logger } from '@nestjs/common';
+import { logger } from "@mmartinez-zz/agavia-observability";
 import { ToolHandler, ToolResult } from "../../common/types";
 import { ProductsService } from "../../products/products.service";
-
-const logger = new Logger('deactivateProductTool');
 
 const TIMEOUT_MS = 5000;
 
@@ -10,7 +8,7 @@ export const deactivateProductTool: ToolHandler = async (
   context,
   args
 ): Promise<ToolResult> => {
-  logger.log(JSON.stringify({ event: 'tool_start', tool: 'deactivate_product', businessId: context.businessId }));
+  logger.log({ event: 'tool_start', tool: 'deactivate_product', businessId: context.businessId });
 
   const productId = args.productId;
 
@@ -40,7 +38,7 @@ export const deactivateProductTool: ToolHandler = async (
     }
 
     const product = result.product;
-    logger.log(JSON.stringify({ event: 'tool_complete', tool: 'deactivate_product', productId: product.id }));
+    logger.log({ event: 'tool_complete', tool: 'deactivate_product', productId: product.id });
     return {
       success: true,
       data: {
@@ -55,7 +53,7 @@ export const deactivateProductTool: ToolHandler = async (
     };
   } catch (error) {
     const errMsg = (error as Error).message;
-    logger.error(JSON.stringify({ event: 'tool_error', tool: 'deactivate_product', error: errMsg }));
+    logger.error({ event: 'tool_error', tool: 'deactivate_product', error: errMsg });
     if (errMsg === "TIMEOUT") {
       return { success: false, error: "TIMEOUT" };
     }

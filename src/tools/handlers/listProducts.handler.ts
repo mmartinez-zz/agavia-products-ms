@@ -1,8 +1,6 @@
-import { Logger } from "@nestjs/common";
+import { logger } from "@mmartinez-zz/agavia-observability";
 import { ToolHandler, ToolResult } from "../../common/types";
 import { ProductsService } from "../../products/products.service";
-
-const logger = new Logger("listProductsTool");
 
 function normalize(text: string): string {
   return text
@@ -45,7 +43,7 @@ export const listProductsTool: ToolHandler = async (
 
   args,
 ): Promise<ToolResult> => {
-  logger.log(JSON.stringify({ event: 'tool_start', tool: 'list_products', businessId: context.businessId }));
+  logger.log({ event: 'tool_start', tool: 'list_products', businessId: context.businessId });
 
 const limit = Math.min(args.limit || 10, 50);
   const offset = Math.max(args.offset || 0, 0);
@@ -149,7 +147,7 @@ const limit = Math.min(args.limit || 10, 50);
       paramIndex,
     }));
   } catch (error: any) {
-    logger.error(JSON.stringify({ event: 'tool_error', tool: 'list_products', error: error.message }));
+    logger.error({ event: 'tool_error', tool: 'list_products', error: error.message });
     return { success: false, error: "INTERNAL_ERROR" };
   }
 
@@ -185,6 +183,6 @@ const limit = Math.min(args.limit || 10, 50);
     },
   };
 
-  logger.log(JSON.stringify({ event: 'tool_complete', tool: 'list_products', count: result.length, total, hasMore }));
+  logger.log({ event: 'tool_complete', tool: 'list_products', count: result.length, total, hasMore });
   return response;
 };

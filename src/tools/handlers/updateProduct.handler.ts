@@ -1,14 +1,12 @@
-import { Logger } from "@nestjs/common";
+import { logger } from "@mmartinez-zz/agavia-observability";
 import { ToolHandler, ToolResult } from "../../common/types";
 import { ProductsService } from "../../products/products.service";
-
-const logger = new Logger("updateProductTool");
 
 export const updateProductTool: ToolHandler = async (
   context,
   args,
 ): Promise<ToolResult> => {
-  logger.log(JSON.stringify({ event: 'tool_start', tool: 'update_product', businessId: context.businessId }));
+  logger.log({ event: 'tool_start', tool: 'update_product', businessId: context.businessId });
 
   const productId = args.productId;
 
@@ -26,7 +24,7 @@ export const updateProductTool: ToolHandler = async (
     repository = ProductsService.getRepository();
     existing = await repository.getProductById(context.businessId, productId);
   } catch (error: any) {
-    logger.error(JSON.stringify({ event: 'tool_error', tool: 'update_product', error: error.message }));
+    logger.error({ event: 'tool_error', tool: 'update_product', error: error.message });
     return { success: false, error: "INTERNAL_ERROR" };
   }
 
@@ -81,12 +79,12 @@ export const updateProductTool: ToolHandler = async (
       imageUrl: dataToUpdate.imageUrl,
     });
   } catch (error: any) {
-    logger.error(JSON.stringify({ event: 'tool_error', tool: 'update_product', error: error.message }));
+    logger.error({ event: 'tool_error', tool: 'update_product', error: error.message });
     return { success: false, error: "INTERNAL_ERROR" };
   }
 
   if (!updated) {
-    logger.error(JSON.stringify({ event: 'tool_error', tool: 'update_product', error: 'no_result', productId: existing.id }));
+    logger.error({ event: 'tool_error', tool: 'update_product', error: 'no_result', productId: existing.id });
     return {
       success: false,
       error: "INTERNAL_ERROR",
@@ -113,6 +111,6 @@ export const updateProductTool: ToolHandler = async (
     },
   };
 
-  logger.log(JSON.stringify({ event: 'tool_complete', tool: 'update_product', displayId: updated.displayId }));
+  logger.log({ event: 'tool_complete', tool: 'update_product', displayId: updated.displayId });
   return result;
 };

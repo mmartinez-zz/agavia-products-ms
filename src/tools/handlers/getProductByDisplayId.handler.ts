@@ -1,14 +1,12 @@
-import { Logger } from "@nestjs/common";
+import { logger } from "@mmartinez-zz/agavia-observability";
 import { ToolHandler, ToolResult } from "../../common/types";
 import { ProductsService } from "../../products/products.service";
-
-const logger = new Logger("getProductByDisplayIdTool");
 
 export const getProductByDisplayIdTool: ToolHandler = async (
   context,
   args,
 ): Promise<ToolResult> => {
-  logger.log(JSON.stringify({ event: 'tool_start', tool: 'get_product_by_display_id', businessId: context.businessId }));
+  logger.log({ event: 'tool_start', tool: 'get_product_by_display_id', businessId: context.businessId });
 
   const displayId = args.displayId;
 
@@ -31,7 +29,7 @@ export const getProductByDisplayIdTool: ToolHandler = async (
     const repository = ProductsService.getRepository();
     product = await repository.getProductByDisplayId(context.businessId, displayId);
   } catch (error: any) {
-    logger.error(JSON.stringify({ event: 'tool_error', tool: 'get_product_by_display_id', error: error.message }));
+    logger.error({ event: 'tool_error', tool: 'get_product_by_display_id', error: error.message });
     return { success: false, error: "INTERNAL_ERROR" };
   }
 
@@ -66,6 +64,6 @@ export const getProductByDisplayIdTool: ToolHandler = async (
     },
   };
 
-  logger.log(JSON.stringify({ event: 'tool_complete', tool: 'get_product_by_display_id', displayId: product.displayId }));
+  logger.log({ event: 'tool_complete', tool: 'get_product_by_display_id', displayId: product.displayId });
   return response;
 };

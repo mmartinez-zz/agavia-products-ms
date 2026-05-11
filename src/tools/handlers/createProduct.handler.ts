@@ -1,11 +1,9 @@
-import { Logger } from "@nestjs/common";
+import { logger } from "@mmartinez-zz/agavia-observability";
 import { ToolHandler, ToolResult } from "../../common/types";
 import { ProductsService } from "../../products/products.service";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 import { generateKeywords } from "../helpers/generateKeywords";
-
-const logger = new Logger("createProductTool");
 
 const TIMEOUT_MS = 5000;
 
@@ -80,21 +78,21 @@ async function processImage(
     }
 
     if (!response.ok) {
-        logger.error(JSON.stringify({ event: 'image_download_failed', status: response.status }));
+        logger.error({ event: 'image_download_failed', status: response.status });
       throw new Error("IMAGE_DOWNLOAD_FAILED");
     }
 
     const contentType = response.headers.get("content-type");
 
     if (!contentType || !contentType.startsWith("image/")) {
-      logger.error(JSON.stringify({ event: 'image_invalid_type', contentType }));
+      logger.error({ event: 'image_invalid_type', contentType });
       throw new Error("INVALID_IMAGE_TYPE");
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
 
     if (buffer.length > 5 * 1024 * 1024) {
-      logger.error(JSON.stringify({ event: 'image_too_large', bytes: buffer.length }));
+      logger.error({ event: 'image_too_large', bytes: buffer.length });
       throw new Error("IMAGE_TOO_LARGE");
     }
 
@@ -117,7 +115,7 @@ async function processImage(
       });
 
     if (error) {
-      logger.error(JSON.stringify({ event: 'supabase_upload_failed', error: error.message }));
+      logger.error({ event: 'supabase_upload_failed', error: error.message });
       throw new Error("SUPABASE_UPLOAD_FAILED");
     }
 
@@ -127,7 +125,7 @@ async function processImage(
 
     return publicUrl.publicUrl;
   } catch (error) {
-    logger.error(JSON.stringify({ event: 'image_process_failed', error: (error as Error).message }));
+    logger.error({ event: 'image_process_failed', error: (error as Error).message });
     return imageUrl;
   }
 }
@@ -136,7 +134,7 @@ export const createProductTool: ToolHandler = async (
   context,
   args,
 ): Promise<ToolResult> => {
-  logger.log(JSON.stringify({ event: 'tool_start', tool: 'create_product', businessId: context.businessId }));
+  logger.log({ event: 'tool_start', tool: 'create_product', businessId: context.businessId });
 
   const title = typeof args.title === "string" ? args.title.trim() : "";
   if (!title) {
@@ -188,10 +186,10 @@ export const createProductTool: ToolHandler = async (
     ]);
   } catch (error: any) {
     if (error.message === "TIMEOUT") {
-      logger.error(JSON.stringify({ event: 'tool_error', tool: 'create_product', error: 'timeout' }));
+      logger.error({ event: 'tool_error', tool: 'create_product', error: 'timeout' });
       return { success: false, error: "TIMEOUT" };
     }
-    logger.error(JSON.stringify({ event: 'tool_error', tool: 'create_product', error: error.message }));
+    logger.error({ event: 'tool_error', tool: 'create_product', error: error.message });
     return { success: false, error: "INTERNAL_ERROR" };
   }
 
@@ -202,7 +200,7 @@ export const createProductTool: ToolHandler = async (
       return repository.updateKeywords(product.id, context.businessId, keywords);
     })
     .catch((err) => {
-      logger.error(JSON.stringify({ event: 'keywords_update_failed', productId: product.id, error: err.message }));
+      logger.error({ event: 'keywords_update_failed', productId: product.id, error: err.message });
     });
 
   const result = {
@@ -225,6 +223,6 @@ export const createProductTool: ToolHandler = async (
     },
   };
 
-  logger.log(JSON.stringify({ event: 'tool_complete', tool: 'create_product', displayId: product.displayId }));
+  logger.log({ event: 'tool_complete', tool: 'create_product', displayId: product.displayId });
   return result;
 };

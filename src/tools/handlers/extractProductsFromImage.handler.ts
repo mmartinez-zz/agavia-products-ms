@@ -1,8 +1,6 @@
-import { Logger } from "@nestjs/common";
+import { logger } from "@mmartinez-zz/agavia-observability";
 import { ToolHandler, ToolResult } from "../../common/types";
 import { callOpenAI } from "../helpers/openai.adapter";
-
-const logger = new Logger("extractProductsFromImageTool");
 
 const TIMEOUT_MS = 3000;
 
@@ -73,7 +71,7 @@ export const extractProductsFromImageTool: ToolHandler = async (
   context,
   args,
 ): Promise<ToolResult> => {
-  logger.log(JSON.stringify({ event: 'tool_start', tool: 'extract_products_from_image', businessId: context.businessId }));
+  logger.log({ event: 'tool_start', tool: 'extract_products_from_image', businessId: context.businessId });
 
   if (!args.imageUrl || typeof args.imageUrl !== "string") {
     return { success: false, error: "VALIDATION_ERROR" };
@@ -118,10 +116,10 @@ export const extractProductsFromImageTool: ToolHandler = async (
       },
     };
 
-    logger.log(JSON.stringify({ event: 'tool_complete', tool: 'extract_products_from_image', count: validProducts.length }));
+    logger.log({ event: 'tool_complete', tool: 'extract_products_from_image', count: validProducts.length });
     return result;
   } catch (error: any) {
-    logger.error(JSON.stringify({ event: 'tool_error', tool: 'extract_products_from_image', error: error.message }));
+    logger.error({ event: 'tool_error', tool: 'extract_products_from_image', error: error.message });
     if (error.message === "TIMEOUT") {
       return { success: false, error: "TIMEOUT" };
     }

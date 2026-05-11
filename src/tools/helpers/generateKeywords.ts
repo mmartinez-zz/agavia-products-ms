@@ -1,7 +1,5 @@
-import { Logger } from "@nestjs/common";
+import { logger } from "@mmartinez-zz/agavia-observability";
 import { callOpenAI } from "./openai.adapter";
-
-const logger = new Logger("generateKeywords");
 
 const PROMPT = `A partir del título y la descripción de un producto, genera entre 2 y 6 keywords relevantes en español que sirvan para búsqueda y categorización.
 
@@ -33,7 +31,7 @@ export async function generateKeywords(
       },
     ]);
   } catch (error: any) {
-    logger.error(JSON.stringify({ event: 'keywords_openai_error', error: error.message }));
+    logger.error({ event: 'keywords_openai_error', error: error.message });
     return [];
   }
 
