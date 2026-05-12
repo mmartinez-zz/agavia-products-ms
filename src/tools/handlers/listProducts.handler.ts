@@ -73,7 +73,7 @@ const limit = Math.min(args.limit || 10, 50);
       })()
     : null;
 
-  let whereClauses: string[] = [`"businessId" = $1`, `is_active = true`];
+  let whereClauses: string[] = [`"businessId" = $1`, `isactive = true`];
   const params: any[] = [businessId];
   let paramIndex = 2;
 
