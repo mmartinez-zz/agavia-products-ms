@@ -1,11 +1,11 @@
-import { Controller, Post, Body, Get, Logger } from '@nestjs/common';
+import { Controller, Post, Body, Get } from '@nestjs/common';
+import { logger } from '@mmartinez-zz/agavia-observability';
 import { ProductsService } from './products.service';
 import { ToolsService } from '../tools/tools.service';
 import { ExecuteRequest, ToolResult } from '../common/types';
 
 @Controller()
 export class ProductsController {
-  private readonly logger = new Logger(ProductsController.name);
 
   constructor(
     private readonly productsService: ProductsService,
@@ -33,12 +33,12 @@ export class ProductsController {
 
     const result = await this.toolsService.execute(body.tool, body.context, body.args);
 
-    this.logger.log(JSON.stringify({
+    logger.log({
       event: 'tool_invoked',
       tool: body.tool,
       businessId: body.context.businessId,
       success: result?.success,
-    }));
+    });
 
     return result;
   }

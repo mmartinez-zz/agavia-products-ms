@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { logger } from '@mmartinez-zz/agavia-observability';
 import { ToolContext, ToolHandler, ToolResult } from '../common/types';
 import { createProductTool } from './handlers/createProduct.handler';
 import { extractProductsFromImageTool } from './handlers/extractProductsFromImage.handler';
@@ -9,7 +10,6 @@ import { deactivateProductTool } from './handlers/deactivateProduct.handler';
 
 @Injectable()
 export class ToolsService {
-  private readonly logger = new Logger(ToolsService.name);
   private toolRegistry: Record<string, ToolHandler> = {
     create_product_from_chat: createProductTool,
     extract_products_from_image: extractProductsFromImageTool,
@@ -24,25 +24,25 @@ export class ToolsService {
     context: ToolContext,
     args: Record<string, any>
   ): Promise<ToolResult> {
-    this.logger.debug(`[toolService] Resolving tool: ${tool}`);
+    logger.debug({ event: 'tool_resolving', tool, businessId: context.businessId });
 
     const handler = this.toolRegistry[tool];
 
     if (!handler) {
-      this.logger.error(`[TOOL-MS] Tool not found: ${tool}`);
+      logger.error({ event: 'tool_not_found', tool, businessId: context.businessId });
       return { success: false, error: 'VALIDATION_ERROR' };
     }
 
-    this.logger.debug(`[toolService] Executing tool: ${tool}, businessId: ${context.businessId}`);
+    logger.debug({ event: 'tool_executing', tool, businessId: context.businessId });
 
     try {
       const result = await handler(context, args);
 
-      this.logger.debug(`[toolService] Tool execution completed: ${tool}, success: ${result?.success}`);
+      logger.debug({ event: 'tool_completed', tool, businessId: context.businessId, success: result?.success });
 
       return result;
     } catch (error: any) {
-      this.logger.error(`[${tool}] Error: ${error.message}`);
+      logger.error({ event: 'tool_execution_error', tool, businessId: context.businessId, error: error.message });
       if (error.message === 'TIMEOUT') {
         return { success: false, error: 'TIMEOUT' };
       }
