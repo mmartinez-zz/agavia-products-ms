@@ -52,7 +52,7 @@ export class ProductRepository {
 
     const result = await this.db.query(
       `INSERT INTO products (
-        id, "businessId", "displayId", title, description, price, "imageUrl", "sourceUrl", "sourceType", keywords, "createdAt", "updatedAt", is_active
+        id, "businessId", "displayId", title, description, price, "imageUrl", "sourceUrl", "sourceType", keywords, "createdAt", "updatedAt", isactive
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`,
       [
@@ -122,7 +122,7 @@ export class ProductRepository {
     const result = await this.db.query(
       `SELECT id, "businessId", "displayId", title, description, price, "imageUrl"
        FROM products
-       WHERE "businessId" = $1 AND "displayId" = $2 AND is_active = true
+       WHERE "businessId" = $1 AND "displayId" = $2 AND isactive = true
        LIMIT 1`,
       [businessId, displayId],
     );
@@ -134,7 +134,7 @@ export class ProductRepository {
     const result = await this.db.query(
       `SELECT id, "businessId", "displayId", title, description, price, "imageUrl"
        FROM products
-       WHERE "businessId" = $1 AND id = $2 AND is_active = true
+       WHERE "businessId" = $1 AND id = $2 AND isactive = true
        LIMIT 1`,
       [businessId, productId],
     );
@@ -205,11 +205,11 @@ export class ProductRepository {
     const result = await this.db.query(
       `UPDATE products
       SET
-        is_active = false,
-        deleted_at = NOW()
+        isactive = false,
+        deletedat = NOW()
       WHERE id = $1
         AND "businessId" = $2
-        AND is_active = true
+        AND isactive = true
       RETURNING id, title`,
       [productId, businessId]
     );
